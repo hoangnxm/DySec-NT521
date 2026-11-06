@@ -13,3 +13,4 @@ outputs/
 wheelhouse/
 *.tar.gz
 .venv/
+batch.log
