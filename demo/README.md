@@ -14,7 +14,7 @@ Gói độc cần thêm Python 3.8 (giống môi trường thu trace malicious c
 
 ```bash
 sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get install -y python3.8 python3.8-venv
-mkdir -p wheelhouse/python3.8 && python3.8 -m pip download -d wheelhouse/python3.8 pip setuptools wheel
+python3.8 -m venv /tmp/dl38 && /tmp/dl38/bin/pip download -d wheelhouse/python3.8 pip==24.3.1 setuptools==75.3.0 wheel==0.45.1
 # đặt file mẫu độc (vd aaiohttp-0.1.tar.gz, lấy từ pypi_malregistry) ở thư mục gốc repo
 ```
 

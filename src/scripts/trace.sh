@@ -35,7 +35,10 @@ fi
 
 rm -rf "$venv"
 $py -m venv "$venv" || { echo "Failed to create venv with $py"; exit 1; }
-"$venv/bin/pip" install $opts --upgrade pip setuptools wheel >/dev/null 2>&1
+# Versions seen in QUT-DV25 raw traces: pip 24.3.1, setuptools 75.3.0, wheel 0.43.0 (benign, py3.12) / 0.45.1 (malicious, py3.8)
+[ "$py" = python3.8 ] && wheel_ver=0.45.1 || wheel_ver=0.43.0
+"$venv/bin/pip" install $opts --upgrade "pip==24.3.1" "setuptools==75.3.0" "wheel==${WHEEL:-$wheel_ver}" >/dev/null 2>&1 \
+    || { echo "Failed to prepare venv (pip/setuptools/wheel)"; exit 1; }
 
 export PYTHONUNBUFFERED=1
 mkdir -p "$out/errors"
