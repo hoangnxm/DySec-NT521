@@ -172,12 +172,12 @@ sudo python3 src/main.py <package_name> [duration]
 
 *Example:*
 ```bash
-sudo python3 src/main.py requests 30
+sudo python3 src/main.py flask 120
 ```
 
 *Skip re-installing:*
 ```bash
-python3 src/main.py requests --skip
+python3 src/main.py flask --skip
 ```
 
 ### 3. Train & Evaluate model

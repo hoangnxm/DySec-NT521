@@ -11,9 +11,14 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-pkg="$1"
+spec="$1"
 duration="${2:-120}"
 py="${PYTHON:-python3}"
+# A local archive is installed from its path but stored under its base name
+if [ -f "$spec" ] || { [[ "$spec" == */* ]] && [ -e "$spec" ]; }; then
+    spec="$(cd "$(dirname "$spec")" && pwd)/$(basename "$spec")"
+fi
+pkg="$(basename "${spec%/}")"
 base="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$base"
 
@@ -42,7 +47,7 @@ sleep 5
 
 start=$(date +%s)
 echo "Installing $pkg ..."
-"$venv/bin/pip" install $opts "$pkg" --no-cache-dir 2>&1 | tee "$out/${pkg}_install_log.txt"
+"$venv/bin/pip" install $opts "$spec" --no-cache-dir 2>&1 | tee "$out/${pkg}_install_log.txt"
 status=${PIPESTATUS[0]}
 
 remain=$(( duration - ($(date +%s) - start) ))

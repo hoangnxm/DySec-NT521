@@ -1,11 +1,12 @@
 #!/bin/bash
 
 sudo apt-get update
-sudo apt-get install -y python3 python3-pip
+sudo apt-get install -y python3 python3-pip python3-venv strace
 sudo apt-get install -y bpfcc-tools linux-headers-$(uname -r)
 sudo apt-get install -y linux-tools-$(uname -r)
 bpftool --version
 uname -r
 sudo apt-get install -y bpftrace
 bpftrace --version
-pip3 install virtualenv scikit-learn pandas joblib --break-system-packages
+# Pinned to the versions the models/*.pkl were saved with
+pip3 install -r "$(dirname "$0")/../../requirements.txt" --break-system-packages

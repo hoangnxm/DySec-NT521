@@ -8,3 +8,8 @@ dataset/QUT-DV25-*/
 env/
 PIDs/
 traces/
+# Demo run outputs (strace), offline wheels, malicious sample archives
+outputs/
+wheelhouse/
+*.tar.gz
+.venv/

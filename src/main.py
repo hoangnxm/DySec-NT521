@@ -30,7 +30,13 @@ def run(pkg, duration, out, skip):
             print("Error: Trace failed.")
             sys.exit(1)
 
-    row = extract(BASE, pkg)
+    # trace.sh stores a local archive under its base name (traces/<name>, outputs/<name>)
+    name = os.path.basename(pkg.rstrip("/"))
+    if not os.path.isdir(os.path.join(BASE, "traces", name)):
+        print(f"Error: No trace found in traces/{name}")
+        sys.exit(1)
+    row = extract(BASE, name)
+    out = out or os.path.join(BASE, "traces", name, "features.csv")
     save(row, out)
     print(f"\n[+] Saved evidence: {out}\n")
 
@@ -41,20 +47,20 @@ def run(pkg, duration, out, skip):
 
     df = pd.DataFrame([row])
     results = predict_pkg(df, models)
-    show(pkg, results)
+    show(name, results)
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("pkg", help="package name or tar.gz file")
-    ap.add_argument("duration", nargs="?", type=int, default=30, help="seconds to monitor")
-    ap.add_argument("--out", help="output CSV evidence path")
+    ap.add_argument("duration", nargs="?", type=int, default=120, help="seconds to monitor (paper: 120)")
+    ap.add_argument("--out", help="output CSV evidence path (default: traces/<pkg>/features.csv)")
     ap.add_argument("--skip", action="store_true", help="skip trace step")
     args = ap.parse_args()
 
-    clean = os.path.basename(args.pkg).replace(".tar.gz", "").replace(".zip", "")
-    out = args.out or f"{clean}.csv"
-    run(args.pkg, args.duration, out, args.skip)
+    # trace.sh runs from the repo root, so a local archive needs an absolute path
+    pkg = os.path.abspath(args.pkg) if os.path.isfile(args.pkg) else args.pkg
+    run(pkg, args.duration, args.out, args.skip)
 
 
 if __name__ == "__main__":
