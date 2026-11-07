@@ -29,14 +29,18 @@ sudo python3 src/main.py flask            # mặc định giám sát 120s như p
 Kết quả: `traces/flask/` (filetop, opensnoop, tcp, install log), `outputs/flask/` (strace),
 `traces/flask/features.csv` (36 feature) và bảng dự đoán, trong đó Random-Forest là model paper triển khai.
 
-## 2. Gói độc (chỉ trong VM cô lập)
+## 2. Gói độc (chỉ trong VM cô lập, **có mạng** như bài báo)
 
-1. VMware: tắt Shared Folders, ngắt card mạng.
+Bài báo cài gói thật từ PyPI trên mạng riêng có đường ra internet (Algorithm 1: `pip install`; trace TCP của gói lành toàn là kết nối HTTPS 443 tới files.pythonhosted.org). Tắt mạng sẽ làm mất các feature TCP và làm lệch kết quả, nên chạy có mạng:
+
+1. VMware: card mạng **NAT**, tắt Shared Folders, không lưu token/khoá SSH nào trong VM. Chụp snapshot `before-malicious`.
 2. Chạy:
    ```bash
-   sudo OFFLINE=1 PYTHON=python3.8 python3 src/main.py aaiohttp-0.1.tar.gz
+   sudo PYTHON=python3.8 python3 src/main.py aaiohttp-0.1.tar.gz
    ```
 3. Chép `traces/` + `outputs/` ra ngoài nếu cần, rồi **revert snapshot `before-malicious`**.
+
+Chạy offline (`OFFLINE=1`, cần wheelhouse) vẫn được nhưng chỉ để dự phòng, điểm thấp hơn khoảng 1 điểm phần trăm.
 
 ## 3. Chạy lại không cần cài (dự phòng)
 
