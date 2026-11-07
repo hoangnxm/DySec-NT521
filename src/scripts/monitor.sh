@@ -22,6 +22,15 @@ touch "$pids_file"
 
 trap 'pkill -P $$ strace 2>/dev/null; echo "monitor.sh: stopped"; exit 0' INT TERM
 
+# The authors run trace.sh from a shell, so no python process of the harness exists.
+# Here main.py / batch.py are python3 processes too: never trace monitor.sh's own ancestors.
+skip=" "
+p=$$
+while [ -n "$p" ] && [ "$p" -gt 1 ]; do
+    skip="$skip$p "
+    p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')
+done
+
 trace() {
     local pid=$1
     echo "$pid" >> "$pids_file"
@@ -30,6 +39,7 @@ trace() {
 }
 
 check() {
+    case "$skip" in *" $1 "*) return 0 ;; esac
     grep -q "^$1$" "$pids_file"
 }
 

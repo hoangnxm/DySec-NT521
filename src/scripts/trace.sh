@@ -42,16 +42,29 @@ $py -m venv "$venv" || { echo "Failed to create venv with $py"; exit 1; }
 
 export PYTHONUNBUFFERED=1
 mkdir -p "$out/errors"
+# Same order as the authors' trace.sh (QUT-DV25, Phase iii): strace monitor first, then the 3 eBPF tools, wait 5 s
+bash "$base/src/scripts/monitor.sh" "$pkg" > "$out/monitor.log" 2>&1 & mpid=$!
 filetop-bpfcc 5 > "$out/${pkg}_filetop_trace.txt" 2>"$out/errors/filetop_trace.err" & fpid=$!
 opensnoop-bpfcc -d 10 > "$out/${pkg}_opensnoop_trace.txt" 2>"$out/errors/opensnoop_trace.err" & opid=$!
 tcpstates-bpfcc > "$out/${pkg}_tcp_trace.txt" 2>"$out/errors/tcp_trace.err" & tpid=$!
-bash "$base/src/scripts/monitor.sh" "$pkg" > "$out/monitor.log" 2>&1 & mpid=$!
 sleep 5
 
 start=$(date +%s)
 echo "Installing $pkg ..."
-"$venv/bin/pip" install $opts "$spec" --no-cache-dir 2>&1 | tee "$out/${pkg}_install_log.txt"
+log="$out/${pkg}_install_log.txt"
+# pip flags and the 3-attempt fallback are copied from the authors' trace.sh
+"$venv/bin/pip" install $opts "$spec" --break-system-packages --no-build-isolation --no-cache-dir 2>&1 | tee "$log"
 status=${PIPESTATUS[0]}
+if [ "$status" -ne 0 ]; then
+    echo "First attempt failed, retrying with pip3 ..."
+    "$venv/bin/pip3" install $opts "$spec" 2>&1 | tee "$log"
+    status=${PIPESTATUS[0]}
+fi
+if [ "$status" -ne 0 ]; then
+    echo "Second attempt failed, retrying with --break-system-packages ..."
+    "$venv/bin/pip" install $opts "$spec" --break-system-packages 2>&1 | tee "$log"
+    status=${PIPESTATUS[0]}
+fi
 
 remain=$(( duration - ($(date +%s) - start) ))
 if [ "$remain" -gt 0 ]; then

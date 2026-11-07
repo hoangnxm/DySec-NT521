@@ -20,7 +20,7 @@ def save(row, path):
     pd.DataFrame([row])[cols].to_csv(path, index=False)
 
 
-def run(pkg, duration, out, skip):
+def run(pkg, duration, out, skip, pipeline="repo"):
     if not skip:
         if os.name != "nt" and os.geteuid() != 0:
             print("Error: Must run with sudo to capture eBPF traces.")
@@ -40,13 +40,18 @@ def run(pkg, duration, out, skip):
     save(row, out)
     print(f"\n[+] Saved evidence: {out}\n")
 
-    models = load_models()
-    if not models:
-        print("Error: No models found.")
-        sys.exit(1)
-
     df = pd.DataFrame([row])
-    results = predict_pkg(df, models)
+    if pipeline == "authors":
+        from authors import predict_df
+        prob = predict_df(df).iloc[0]
+        results = [{"model": m, "pred": int(p >= 0.5), "label": "MALICIOUS" if p >= 0.5 else "BENIGN", "prob": float(p)}
+                   for m, p in prob.items()]
+    else:
+        models = load_models()
+        if not models:
+            print("Error: No models found.")
+            sys.exit(1)
+        results = predict_pkg(df, models)
     show(name, results)
 
 
@@ -56,11 +61,14 @@ def main():
     ap.add_argument("duration", nargs="?", type=int, default=120, help="seconds to monitor (paper: 120)")
     ap.add_argument("--out", help="output CSV evidence path (default: traces/<pkg>/features.csv)")
     ap.add_argument("--skip", action="store_true", help="skip trace step")
+    ap.add_argument("--pipeline", choices=["repo", "authors"], default="repo",
+                    help="repo = 36 ordinal-encoded features (models/*.pkl); authors = n-gram pipeline of the "
+                         "authors' notebook (models/authors/pipeline.pkl, build with: python src/authors.py train)")
     args = ap.parse_args()
 
     # trace.sh runs from the repo root, so a local archive needs an absolute path
     pkg = os.path.abspath(args.pkg) if os.path.isfile(args.pkg) else args.pkg
-    run(pkg, args.duration, args.out, args.skip)
+    run(pkg, args.duration, args.out, args.skip, args.pipeline)
 
 
 if __name__ == "__main__":
