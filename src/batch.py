@@ -67,7 +67,11 @@ def main():
                     subprocess.run(["bash", SCRIPT, pkg, str(args.duration)], cwd=BASE,
                                    stdout=log, stderr=log, timeout=args.duration + 900)
                 except subprocess.TimeoutExpired:
-                    subprocess.run(["pkill", "-f", "filetop-bpfcc|tcpstates-bpfcc|opensnoop-bpfcc|strace"])
+                    # trace.sh was killed before its own cleanup: stop everything it started
+                    subprocess.run(["pkill", "-KILL", "-f", "[s]rc/scripts/monitor.sh"])
+                    subprocess.run(["pkill", "-KILL", "-f", "[f]iletop-bpfcc|[o]pensnoop-bpfcc|[t]cpstates-bpfcc"])
+                    subprocess.run(["pkill", "-KILL", "-x", "strace"])
+                    print("    timeout: trace.sh killed", flush=True)
                 shutil.rmtree(os.path.join(BASE, "env", os.path.basename(pkg)), ignore_errors=True)
                 st, died = status(pkg)
             else:

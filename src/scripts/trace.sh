@@ -11,6 +11,16 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# Stop leftovers of an earlier run (a stale monitor.sh would grab pip with its own strace
+# and leave this run with an empty system call trace). [x] keeps pkill from matching itself.
+cleanup_stale() {
+    pkill -KILL -f '[s]rc/scripts/monitor.sh' 2>/dev/null
+    pkill -KILL -f '[f]iletop-bpfcc|[o]pensnoop-bpfcc|[t]cpstates-bpfcc' 2>/dev/null
+    pkill -KILL -x strace 2>/dev/null
+    return 0
+}
+cleanup_stale
+
 spec="$1"
 duration="${2:-120}"
 py="${PYTHON:-python3}"
@@ -92,7 +102,15 @@ for pair in "filetop:$fpid" "tcpstates:$tpid"; do
 done
 kill $fpid $opid $tpid $mpid 2>/dev/null
 pkill -x strace 2>/dev/null
-sleep 1
+sleep 2
+# Anything that ignored SIGTERM is killed for sure
+kill -KILL $fpid $opid $tpid $mpid 2>/dev/null
+cleanup_stale
+
+# An empty strace directory means no system call was recorded: the run is not valid
+if [ -z "$(find "outputs/$pkg" -type f -size +0 2>/dev/null | head -1)" ]; then
+    warn="$warn strace"
+fi
 
 [ "$status" -eq 0 ] && result=Success || result=Failed
 echo "$pkg,$result,$(date '+%F %T'),probe_died:${warn:- none}" >> traces/status.csv
