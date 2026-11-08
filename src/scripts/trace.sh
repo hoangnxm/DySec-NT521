@@ -93,8 +93,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 # Logging only: wall-clock seconds pip took (all attempts)
-awk -v a="$t0" -v b="$(date +%s.%N)" 'BEGIN { printf "%.2f
-", b - a }' > "$out/install_seconds.txt"
+awk -v a="$t0" -v b="$(date +%s.%N)" 'BEGIN { print sprintf("%.2f", b - a) }' > "$out/install_seconds.txt"
 
 remain=$(( duration - ($(date +%s) - start) ))
 if [ "$remain" -gt 0 ]; then

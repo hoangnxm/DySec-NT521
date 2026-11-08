@@ -46,8 +46,8 @@ trace() {
     echo "Tracing PID $pid ($2)"
     # read after strace is launched, so the logging never delays the attach
     st=$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')
-    [ -n "$st" ] && awk -v n="$now" -v s="$st" -v hz="$hz" -v p="$pid" -v c="$2"         'BEGIN { printf "%s %s %.2f
-", p, c, n - s / hz }' >> "$timing"
+    [ -n "$st" ] && awk -v n="$now" -v s="$st" -v hz="$hz" -v p="$pid" -v c="$2" \
+        'BEGIN { print p, c, sprintf("%.2f", n - s / hz) }' >> "$timing"
 }
 
 check() {
