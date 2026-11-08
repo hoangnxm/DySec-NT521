@@ -22,6 +22,23 @@ def status(pkg):
     return last[1], last[3].replace("probe_died:", "").strip()
 
 
+def timing(pkg):
+    """Attach delay of strace on the main pip process and pip's install time (seconds), or ''."""
+    d = os.path.join(BASE, "traces", os.path.basename(pkg))
+    delay = secs = ""
+    try:
+        rows = [l.split() for l in open(os.path.join(d, "attach_delay.txt")) if len(l.split()) == 3]
+        main = [r for r in rows if r[1] in ("pip", "pip3")] or rows
+        delay = main[0][2] if main else ""
+    except OSError:
+        pass
+    try:
+        secs = open(os.path.join(d, "install_seconds.txt")).read().strip()
+    except OSError:
+        pass
+    return delay, secs
+
+
 def done(path):
     if not os.path.exists(path):
         return set()
@@ -50,8 +67,11 @@ def main():
 
     with open(args.out, "a", newline="", encoding="utf-8") as fo, \
          open(args.features, "a", newline="", encoding="utf-8") as ff:
-        cols = ["Package_Name", "Status", "Probe_Died"] + list(models)
-        wo = csv.DictWriter(fo, fieldnames=cols)
+        cols = ["Package_Name", "Status", "Probe_Died", "Attach_Delay", "Install_Seconds"] + list(models)
+        if not new_out:                      # resuming an older CSV: keep its columns
+            with open(args.out, encoding="utf-8") as f:
+                cols = next(csv.reader(f), cols)
+        wo = csv.DictWriter(fo, fieldnames=cols, extrasaction="ignore")
         wf = csv.DictWriter(ff, fieldnames=["Package_Name"] + FEATURES)
         if new_out:
             wo.writeheader()
@@ -77,7 +97,9 @@ def main():
             else:
                 st, died = "Success", "none"
 
-            row = {"Package_Name": pkg, "Status": st, "Probe_Died": died}
+            delay, secs = timing(pkg)
+            row = {"Package_Name": pkg, "Status": st, "Probe_Died": died,
+                   "Attach_Delay": delay, "Install_Seconds": secs}
             if os.path.isdir(os.path.join(BASE, "traces", pkg)):
                 feats = extract(BASE, pkg)
                 wf.writerow({k: feats.get(k, "") for k in ["Package_Name"] + FEATURES})
@@ -86,7 +108,7 @@ def main():
                     row[r["model"]] = round(r["prob"], 4) if r["prob"] is not None else ""
             wo.writerow(row)
             fo.flush()
-            print(f"    {st} probe_died={died} RF={row.get('Random-Forest', '-')}", flush=True)
+            print(f"    {st} probe_died={died} delay={delay or '-'}s install={secs or '-'}s RF={row.get('Random-Forest', '-')}", flush=True)
 
 
 if __name__ == "__main__":

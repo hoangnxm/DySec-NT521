@@ -20,6 +20,13 @@ pids_file="${pids}/${pkg}.txt"
 rm -f "$pids_file"
 touch "$pids_file"
 
+# Logging only (not in the authors' script): how late strace attached to each process.
+# delay = uptime at attach - process start time (/proc/<pid>/stat field 22, in clock ticks).
+timing="traces/${pkg}/attach_delay.txt"
+mkdir -p "traces/${pkg}"
+: > "$timing"
+hz=$(getconf CLK_TCK)
+
 trap 'pkill -P $$ strace 2>/dev/null; echo "monitor.sh: stopped"; exit 0' INT TERM
 
 # The authors run trace.sh from a shell, so no python process of the harness exists.
@@ -32,10 +39,15 @@ while [ -n "$p" ] && [ "$p" -gt 1 ]; do
 done
 
 trace() {
-    local pid=$1
+    local pid=$1 now st
+    now=$(cut -d' ' -f1 /proc/uptime)
     echo "$pid" >> "$pids_file"
     strace -f -ff -o "${out}/${pid}" -s 4096 -t -v -p "$pid" 2>/dev/null &
     echo "Tracing PID $pid ($2)"
+    # read after strace is launched, so the logging never delays the attach
+    st=$(sed 's/.*) //' "/proc/$pid/stat" 2>/dev/null | awk '{print $20}')
+    [ -n "$st" ] && awk -v n="$now" -v s="$st" -v hz="$hz" -v p="$pid" -v c="$2"         'BEGIN { printf "%s %s %.2f
+", p, c, n - s / hz }' >> "$timing"
 }
 
 check() {

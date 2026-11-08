@@ -77,6 +77,7 @@ run() {
         "$@"
     fi
 }
+t0=$(date +%s.%N)
 # pip flags and the 3-attempt fallback are copied from the authors' trace.sh
 run "$venv/bin/pip" install $opts "$spec" --break-system-packages --no-build-isolation --no-cache-dir 2>&1 | tee "$log"
 status=${PIPESTATUS[0]}
@@ -90,6 +91,10 @@ if [ "$status" -ne 0 ]; then
     run "$venv/bin/pip" install $opts "$spec" --break-system-packages 2>&1 | tee "$log"
     status=${PIPESTATUS[0]}
 fi
+
+# Logging only: wall-clock seconds pip took (all attempts)
+awk -v a="$t0" -v b="$(date +%s.%N)" 'BEGIN { printf "%.2f
+", b - a }' > "$out/install_seconds.txt"
 
 remain=$(( duration - ($(date +%s) - start) ))
 if [ "$remain" -gt 0 ]; then
