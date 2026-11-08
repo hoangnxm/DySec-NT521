@@ -9,7 +9,9 @@
 set -u
 TAG="${TAG:-lap2}"
 RUNS="${RUNS:-2}"
-PY=python3.8
+# As in QUT-DV25: benign traced with the default Python 3.12, malicious with Python 3.8
+PY_BENIGN=python3
+PY_MAL=python3.8
 base="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$base"
 [ "$(id -u)" -eq 0 ] || { echo "Must run with sudo"; exit 1; }
@@ -21,8 +23,8 @@ capmostercloudclieent-1.0.0 cilorama-1.0.0 bip-utjls-1.0.0 assyncio-1.0.0 colora
 # Trace every package of list $1 into ${prefix}_results/features.csv, then re-run (up to 2 times)
 # the packages whose probes died; the re-runs go to ${prefix}_rerun{1,2}_*.csv.
 measure() {
-    local list=$1 prefix=$2 i
-    PYTHON=$PY python3 src/batch.py "$list" --out "${prefix}_results.csv" --features "${prefix}_features.csv"
+    local list=$1 prefix=$2 py=$3 i
+    PYTHON=$py python3 src/batch.py "$list" --out "${prefix}_results.csv" --features "${prefix}_features.csv"
     for i in 1 2; do
         python3 - "$prefix" > "${prefix}_bad.txt" <<'PY'
 import glob, sys
@@ -34,7 +36,7 @@ print("\n".join(d.loc[d.Probe_Died.astype(str) != "none", "Package_Name"]))
 PY
         [ -s "${prefix}_bad.txt" ] || break
         echo "=== $prefix rerun $i: $(wc -l < "${prefix}_bad.txt") packages ($(date '+%T'))"
-        PYTHON=$PY python3 src/batch.py "${prefix}_bad.txt" \
+        PYTHON=$py python3 src/batch.py "${prefix}_bad.txt" \
             --out "${prefix}_rerun${i}_results.csv" --features "${prefix}_rerun${i}_features.csv"
     done
 }
@@ -45,7 +47,7 @@ echo "=== START $(date) | $(uname -r) | $(nproc) CPU | commit $(git log --onelin
 (echo flask; cat data/benign-test.txt) > "${TAG}_benign.txt"
 for run in $(seq 1 "$RUNS"); do
     echo "=== benign run $run: $(wc -l < "${TAG}_benign.txt") packages ($(date '+%T'))"
-    measure "${TAG}_benign.txt" "${TAG}_r${run}_benign"
+    measure "${TAG}_benign.txt" "${TAG}_r${run}_benign" "$PY_BENIGN"
 done
 tar -czf "${TAG}_benign_only.tar.gz" ${TAG}_r*_benign*.csv
 echo "=== benign done $(date) | sha256 (before any malware ran): $(sha256sum "${TAG}_benign_only.tar.gz" | cut -d' ' -f1)"
@@ -73,7 +75,7 @@ echo "=== malicious samples present: $n/11"
 [ "$n" -eq 11 ] || { echo "!!! missing samples: malicious phase SKIPPED"; exit 1; }
 for run in $(seq 1 "$RUNS"); do
     echo "=== malicious run $run ($(date '+%T'))"
-    measure "${TAG}_mal.txt" "${TAG}_r${run}_mal"
+    measure "${TAG}_mal.txt" "${TAG}_r${run}_mal" "$PY_MAL"
 done
 
 # ---------- Ablation per run ----------
