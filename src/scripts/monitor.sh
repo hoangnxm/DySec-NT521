@@ -64,5 +64,5 @@ while true; do
             fi
         done
     done
-    sleep 1
+    sleep "${POLL:-1}"      # authors: 1 s. POLL is only for diagnosing the attach delay
 done
