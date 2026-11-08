@@ -15,7 +15,8 @@ Gói độc cần thêm Python 3.8 (giống môi trường thu trace malicious c
 ```bash
 sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get install -y python3.8 python3.8-venv
 python3.8 -m venv /tmp/dl38 && /tmp/dl38/bin/pip download -d wheelhouse/python3.8 pip==24.3.1 setuptools==75.3.0 wheel==0.45.1
-# đặt file mẫu độc (vd aaiohttp-0.1.tar.gz, lấy từ pypi_malregistry) ở thư mục gốc repo
+# tải file mẫu độc về thư mục gốc repo (chỉ tải, không giải nén); snapshot cũ có thể không có file này
+wget -q https://raw.githubusercontent.com/lxyeternal/pypi_malregistry/main/aaiohttp/0.1/aaiohttp-0.1.tar.gz && ls -l aaiohttp-0.1.tar.gz
 ```
 
 Sau đó chụp snapshot VM `before-malicious`.
@@ -49,17 +50,16 @@ python3 src/main.py flask --skip          # đọc lại traces/flask + outputs/
 python3 src/predict.py traces/flask/features.csv
 ```
 
-## Kết quả tham chiếu (trace nhóm thu, Random-Forest)
+## Kết quả tham chiếu (VM sạch, có mạng, commit 9f72d5e, Random-Forest)
+
+Đo ngày 07–08/11/2026 bằng `trace.sh` theo đúng cách gắn strace của tác giả (`monitor.sh` dò pip mỗi giây).
 
 | Gói | Nhãn thật | RF | Xác suất độc |
 |---|---|---|---|
-| flask | benign | BENIGN | 37.73% |
-| adafruit-io | benign | BENIGN | 8.1% |
-| Acquisition | benign | BENIGN | 6.7% |
-| 1337x | benign | BENIGN | 31.9% |
-| requests | benign | **MALICIOUS** (sai) | 65.6% |
-| aaiohttp-0.1.tar.gz | malicious | MALICIOUS | 85.32% |
-| aihottp-0.1.tar.gz | malicious | MALICIOUS | 88.1% |
-| aiohhttp-0.1.tar.gz | malicious | MALICIOUS | 85.7% |
+| flask | benign | BENIGN | 24.33% |
+| aaiohttp-0.1.tar.gz | malicious | MALICIOUS | 85.61% |
+| cilorama-1.0.0.tar.gz | malicious | MALICIOUS | 93.74% |
 
-Không dùng `requests` làm gói benign khi demo: model đoán sai gói này.
+- Cùng một gói, mỗi lần chạy một khác, vì thời điểm strace gắn vào pip thay đổi. Trên VM sạch, flask ra 18–24% qua các lần đo, lần nào cũng dưới 50%.
+- Trên 106 gói lành mới, RF báo nhầm 51/106 (48,1%), và 11/11 gói độc bị bắt. Gói lành nhỏ, cài nhanh dễ bị báo nhầm. Demo nên dùng flask.
+- `STRACE=wrap` (chạy pip dưới strace từ đầu) chỉ dùng để so sánh, **không phải** cách của tác giả. Với wrap, chỉ 4/11 gói độc bị bắt.
