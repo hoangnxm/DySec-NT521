@@ -1,6 +1,8 @@
 """Pick a FRESH benign hold-out set: packages never used before (not in QUT-DV25 train/test, not in
 data/benign-test.txt, not in the flask/benign-heavy lists). Same rules as the first benign set:
-top-PyPI rank 472-7986, has a wheel, <= 5 direct dependencies, < 15 MB, at most 3 packages per name stem.
+top-PyPI rank 472-7986, has a wheel, <= 5 direct dependencies, < 15 MB, at most 3 packages per name stem,
+and no direct dependency on a multi-GB stack (torch, tensorflow, nvidia, jax, cuda: such installs hit the 17 min
+timeout). The filter looks at dependency names only, never at measured results.
 Seed 2027 (the first set used 521).
 
   python data/select-benign-fresh.py top.json 40 > data/benign-fresh.txt
@@ -40,7 +42,8 @@ def info(name):
     if not wheels or sum(f["size"] for f in files) > 15 * 1024 * 1024:
         return None
     deps = [x for x in (d["info"].get("requires_dist") or []) if "extra ==" not in x]
-    return len(deps) <= 5
+    heavy = ("torch", "tensorflow", "nvidia", "jax", "cuda", "paddle", "onnxruntime")
+    return len(deps) <= 5 and not any(h in x.lower() for x in deps for h in heavy)
 
 picked, stems = [], {}
 for c in cands:
