@@ -1,0 +1,8 @@
+flask
+easydict
+jsonlines
+chameleon
+python-crontab
+detect-delimiter
+unlzw3
+dbus-next
