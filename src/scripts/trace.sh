@@ -17,6 +17,7 @@ cleanup_stale() {
     pkill -KILL -f '[s]rc/scripts/monitor.sh' 2>/dev/null
     pkill -KILL -f '[f]iletop-bpfcc|[o]pensnoop-bpfcc|[t]cpstates-bpfcc' 2>/dev/null
     pkill -KILL -x strace 2>/dev/null
+    pkill -KILL -f '[e]nv/.*/bin/(pip|python)' 2>/dev/null   # orphan pip of an earlier killed run
     return 0
 }
 cleanup_stale

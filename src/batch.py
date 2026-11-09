@@ -91,6 +91,8 @@ def main():
                     subprocess.run(["pkill", "-KILL", "-f", "[s]rc/scripts/monitor.sh"])
                     subprocess.run(["pkill", "-KILL", "-f", "[f]iletop-bpfcc|[o]pensnoop-bpfcc|[t]cpstates-bpfcc"])
                     subprocess.run(["pkill", "-KILL", "-x", "strace"])
+                    # the orphan pip of the killed trace.sh would be attached by the next package's monitor
+                    subprocess.run(["pkill", "-KILL", "-f", "[e]nv/.*/bin/(pip|python)"])
                     print("    timeout: trace.sh killed", flush=True)
                 shutil.rmtree(os.path.join(BASE, "env", os.path.basename(pkg)), ignore_errors=True)
                 st, died = status(pkg)
