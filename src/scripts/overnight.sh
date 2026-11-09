@@ -44,7 +44,7 @@ PY
 echo "=== START $(date) | $(uname -r) | $(nproc) CPU | commit $(git log --oneline -1 2>/dev/null)"
 
 # ---------- Phase A: benign ----------
-(echo flask; cat data/benign-test.txt) > "${TAG}_benign.txt"
+(echo flask; cat data/benign-test.txt) | grep -vxFf data/benign-heavy.txt > "${TAG}_benign.txt"   # heavy installs (torch/nvidia) hit the timeout and spoil the next runs
 for run in $(seq 1 "$RUNS"); do
     echo "=== benign run $run: $(wc -l < "${TAG}_benign.txt") packages ($(date '+%T'))"
     measure "${TAG}_benign.txt" "${TAG}_r${run}_benign" "$PY_BENIGN"
