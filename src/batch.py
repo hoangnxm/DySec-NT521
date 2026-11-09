@@ -4,6 +4,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from extract import extract, FEATURES
 from predict import load_models, predict_pkg
+from preprocess import transform
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(BASE, "src", "scripts", "trace.sh")
@@ -39,6 +40,15 @@ def timing(pkg):
     return delay, secs
 
 
+def load_variants():
+    """Variant RFs of variant/train_variant.py (drop G1+G2, drop G1+G2+G3), scored live next to the authors' RF."""
+    import glob, joblib
+    out = {}
+    for f in sorted(glob.glob(os.path.join(BASE, "variant", "rf_*.pkl"))):
+        out["Var-" + os.path.basename(f)[3:-4]] = joblib.load(f)
+    return out
+
+
 def done(path):
     if not os.path.exists(path):
         return set()
@@ -61,13 +71,14 @@ def main():
 
     pkgs = [l.strip() for l in open(args.list, encoding="utf-8") if l.strip()]
     models = load_models()
+    variants = load_variants()
     skip = done(args.out)
     new_out, new_feat = not os.path.exists(args.out), not os.path.exists(args.features)
     log = open(os.path.join(BASE, "batch.log"), "a")
 
     with open(args.out, "a", newline="", encoding="utf-8") as fo, \
          open(args.features, "a", newline="", encoding="utf-8") as ff:
-        cols = ["Package_Name", "Status", "Probe_Died", "Attach_Delay", "Install_Seconds"] + list(models)
+        cols = ["Package_Name", "Status", "Probe_Died", "Attach_Delay", "Install_Seconds"] + list(models) + list(variants)
         if not new_out:                      # resuming an older CSV: keep its columns
             with open(args.out, encoding="utf-8") as f:
                 cols = next(csv.reader(f), cols)
@@ -108,9 +119,13 @@ def main():
                 ff.flush()
                 for r in predict_pkg(pd.DataFrame([feats]), models):
                     row[r["model"]] = round(r["prob"], 4) if r["prob"] is not None else ""
+                X = transform(pd.DataFrame([feats]))
+                for name, v in variants.items():
+                    row[name] = round(float(v["model"].predict_proba(X[v["cols"]])[0][1]), 4)
             wo.writerow(row)
             fo.flush()
-            print(f"    {st} probe_died={died} delay={delay or '-'}s install={secs or '-'}s RF={row.get('Random-Forest', '-')}", flush=True)
+            print(f"    {st} probe_died={died} delay={delay or '-'}s install={secs or '-'}s RF={row.get('Random-Forest', '-')}"
+                  + "".join(f" {k[4:]}={row.get(k, '-')}" for k in variants), flush=True)
 
 
 if __name__ == "__main__":

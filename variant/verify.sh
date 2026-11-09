@@ -10,6 +10,7 @@ user_home=$(getent passwd "${SUDO_USER:-root}" | cut -d: -f6)
 echo "=== START $(date) | $(nproc) CPU | commit $(git log --oneline -1 2>/dev/null)"
 
 python3 variant/train_variant.py || exit 1
+sha256sum variant/*.pkl models/Random-Forest.pkl
 
 # Trace list $1 into ${2}_results/features.csv, then re-run (up to 2 times) the packages whose probes died
 measure() {
