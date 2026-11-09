@@ -1,4 +1,4 @@
-"""Score traced packages with the authors' RF (36 cols) and the variant (drop G1+G2) side by side.
+"""Score traced packages with the authors' RF (36 cols) and the variants (drop G1+G2, drop G1+G2+G3) side by side.
 
   python3 variant/score.py --benign ver_benign_features.csv --benign-results ver_benign_results.csv \
       --malicious ver_mal_features.csv --malicious-results ver_mal_results.csv --out ver_scores.csv
@@ -55,27 +55,29 @@ def main():
                    load(a.malicious, a.malicious_results, "malicious")], ignore_index=True)
     X = transform(d)
     orig = joblib.load(os.path.join(BASE, "models", "Random-Forest.pkl"))
-    var = joblib.load(os.path.join(HERE, "rf_drop_g1g2.pkl"))
     d["RF_authors"] = orig.predict_proba(X[FEATURES])[:, 1].round(4)
-    d["RF_drop_G1G2"] = var["model"].predict_proba(X[var["cols"]])[:, 1].round(4)
+    names = ["RF_authors"]
+    for v in ("drop_g1g2", "drop_g1g2g3"):
+        var = joblib.load(os.path.join(HERE, f"rf_{v}.pkl"))
+        d["RF_" + v] = var["model"].predict_proba(X[var["cols"]])[:, 1].round(4)
+        names.append("RF_" + v)
     d[["Package_Name", "Class", "Status", "Probe_Died", "Attach_Delay", "Install_Seconds",
-       "Excluded", "RF_authors", "RF_drop_G1G2"]].to_csv(a.out, index=False)
+       "Excluded"] + names].to_csv(a.out, index=False)
 
     ok = d[d.Excluded == ""]
     print(f"valid runs: benign {int((ok.Class == 'benign').sum())}, malicious {int((ok.Class == 'malicious').sum())}"
           f" (excluded {int((d.Excluded != '').sum())})")
-    for m in ("RF_authors", "RF_drop_G1G2"):
+    for m in names:
         b, s = ok[ok.Class == "benign"], ok[ok.Class == "malicious"]
         fp, tp = int((b[m] >= 0.5).sum()), int((s[m] >= 0.5).sum())
         lo, hi = wilson(fp, len(b)); lo2, hi2 = wilson(tp, len(s))
-        print(f"{m:13s} FPR {fp}/{len(b)} = {fp / max(len(b), 1):.1%} (95% CI {lo:.1%}-{hi:.1%})"
+        print(f"{m:17s} FPR {fp}/{len(b)} = {fp / max(len(b), 1):.1%} (95% CI {lo:.1%}-{hi:.1%})"
               f" | recall {tp}/{len(s)} = {tp / max(len(s), 1):.1%} (95% CI {lo2:.1%}-{hi2:.1%})")
     late = pd.to_numeric(ok.Attach_Delay, errors="coerce") >= 1.0
     for name, part in (("attach < 1.0 s", ok[~late]), ("attach >= 1.0 s", ok[late])):
         b = part[part.Class == "benign"]
         if len(b):
-            print(f"  benign, {name}: n={len(b)} | FP authors {int((b.RF_authors >= 0.5).sum())}"
-                  f" | FP variant {int((b.RF_drop_G1G2 >= 0.5).sum())}")
+            print(f"  benign, {name}: n={len(b)} | FP " + " | ".join(f"{m} {int((b[m] >= 0.5).sum())}" for m in names))
     if (d.Excluded != "").any():
         print("excluded:")
         for _, r in d[d.Excluded != ""].iterrows():
