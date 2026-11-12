@@ -19,6 +19,9 @@ if [ -s fresh_bad.txt ]; then
     echo "=== rerun $(wc -l < fresh_bad.txt) packages"
     PYTHON=python3 python3 src/batch.py fresh_bad.txt --out fresh_rerun_results.csv --features fresh_rerun_features.csv
 fi
-tar -czf fresh_out.tar.gz fresh_*.csv fresh_*.txt 2>/dev/null
+FE=fresh_features.csv; RE=fresh_results.csv
+[ -f fresh_rerun_results.csv ] && { FE="$FE fresh_rerun_features.csv"; RE="$RE fresh_rerun_results.csv"; }
+python3 variant/score_benign.py --features $FE --results $RE --out fresh_scores.csv | tee fresh_summary.txt
+tar -czf fresh_out.tar.gz fresh_*.csv fresh_*.txt verify_fresh.log 2>/dev/null
 chown "${SUDO_USER:-root}" fresh_* 2>/dev/null
 echo "=== ALL DONE $(date) | fresh_out.tar.gz sha256 $(sha256sum fresh_out.tar.gz | cut -d' ' -f1)"
