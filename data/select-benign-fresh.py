@@ -3,15 +3,19 @@ data/benign-test.txt, not in the flask/benign-heavy lists). Same rules as the fi
 top-PyPI rank 472-7986, has a wheel, <= 5 direct dependencies, < 15 MB, at most 3 packages per name stem,
 and no direct dependency on a multi-GB stack (torch, tensorflow, nvidia, jax, cuda: such installs hit the 17 min
 timeout). The filter looks at dependency names only, never at measured results.
-Seed 2027 (the first set used 521).
+Seed 2027 (the first set used 521). Optional: a seed and extra lists to exclude (lap D used seed 2028 and
+excluded data/benign-fresh.txt).
 
   python data/select-benign-fresh.py top.json 40 > data/benign-fresh.txt
+  python data/select-benign-fresh.py top.json 110 2028 benign-fresh.txt > data/benign-lapD.txt
 """
 import csv, json, os, random, re, sys, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(HERE)
 top, n = sys.argv[1], int(sys.argv[2])
+seed = int(sys.argv[3]) if len(sys.argv) > 3 else 2027
+extra = sys.argv[4:]
 
 def norm(s):
     return re.sub(r"[-_.]+", "-", s.lower())
@@ -21,14 +25,14 @@ for f in ("train.csv", "test.csv"):
     with open(os.path.join(BASE, "dataset", f), encoding="utf-8") as fh:
         for r in csv.DictReader(fh):
             used.add(norm(r["Package_Name"][:-7].rsplit("-", 1)[0]))
-for f in ("benign-test.txt", "benign-heavy.txt"):
-    used |= {norm(l) for l in open(os.path.join(HERE, f)) if l.strip()}
+for f in ("benign-test.txt", "benign-heavy.txt", *extra):
+    used |= {norm(l.strip()) for l in open(os.path.join(HERE, f)) if l.strip()}
 used.add("flask")
 
 rows = json.load(open(top))["rows"]
 cands = [norm(r["project"]) for r in rows[471:7986]]
 cands = [c for c in dict.fromkeys(cands) if c not in used]
-random.seed(2027)
+random.seed(seed)
 random.shuffle(cands)
 
 def info(name):

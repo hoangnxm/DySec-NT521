@@ -5,7 +5,7 @@
 
 Last row per package wins, so pass the re-run files after the first run.
 """
-import argparse, os, sys, joblib
+import argparse, math, os, sys, joblib
 import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -39,6 +39,12 @@ def main():
         k = int((ok[m] >= 0.5).sum())
         lo, hi = wilson(k, len(ok))
         print(f"{m:17s} FPR {k}/{len(ok)} = {k / max(len(ok), 1):.1%} (95% CI {lo:.1%}-{hi:.1%})")
+    # paired check on the same runs (exact McNemar, two-sided): authors' RF vs drop G1+G2
+    a, v = ok["RF_authors"] >= 0.5, ok["RF_drop_g1g2"] >= 0.5
+    only_a, only_v = int((a & ~v).sum()), int((~a & v).sum())
+    n, k = only_a + only_v, min(only_a, only_v)
+    p = min(1.0, 2 * sum(math.comb(n, j) for j in range(k + 1)) / 2 ** n) if n else 1.0
+    print(f"paired (same runs): FP only by RF_authors {only_a} | only by RF_drop_g1g2 {only_v} | exact McNemar p = {p:.4f}")
     secs = pd.to_numeric(ok.Install_Seconds, errors="coerce")
     for name, part in (("install < 5 s", ok[secs < 5]), ("install >= 5 s", ok[secs >= 5])):
         if len(part):
