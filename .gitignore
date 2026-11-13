@@ -14,4 +14,3 @@ wheelhouse/
 *.tar.gz
 .venv/
 batch.log
-variant/*.pkl
