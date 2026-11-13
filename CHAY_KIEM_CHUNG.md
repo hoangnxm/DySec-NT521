@@ -1,13 +1,18 @@
 # Chạy kiểm chứng DySec trên máy khác (lần E)
 
-Mục đích: chạy lại đúng lần D (110 gói lành) và lần C (160 gói độc) trên một máy thật khác, cùng VM, cùng model. Từ đó xem
-biến thể bỏ G1+G2 có còn tốt khi đổi máy hay không, giống như model của tác giả chạy được trên máy của tác giả.
+Mục đích: chạy lại 110 gói lành của lần D và 160 gói độc của lần C trên một máy thật khác, cùng VM, cùng model.
+Từ đó xem biến thể bỏ G1+G2 có còn tốt khi đổi máy hay không, giống như model của tác giả chạy được trên máy của tác giả.
+
+Khác lần C và D: 270 gói chạy **xen kẽ** trong một lần chạy, khoảng 1 gói lành rồi 1–2 gói độc.
+Thứ tự nằm cố định trong `data/mix-lapE.txt` (sinh bằng `data/make-mix-lapE.py`, không ngẫu nhiên).
+Nhờ vậy gói lành và gói độc được đo trong cùng điều kiện máy và mạng theo thời gian, không bên nào được đo hết vào lúc máy rảnh.
 
 File này được commit **trước khi chạy**. Sau khi đã thấy số thì không sửa luật bên dưới.
 
 ## 1. Luật chốt trước
 
 - **Dữ liệu:** `data/benign-lapD.txt` (110 gói lành) và `data/malicious-lapC.txt` (160 gói độc), giữ nguyên, không thêm, không bớt.
+  Thứ tự chạy theo `data/mix-lapE.txt`. Gói lành cài bằng python3 như lần D, gói độc bằng python3.8 như lần C.
 - **Model:** giữ nguyên. Lúc chạy, script in sha256 của từng file model, và các mã này phải trùng với bảng dưới.
 
   | File model | sha256 (mấy ký tự đầu, cuối) |
@@ -29,7 +34,10 @@ File này được commit **trước khi chạy**. Sau khi đã thấy số thì
   | Gốc của tác giả | 45,7% | 96,0% |
   | Bỏ G1+G2 | 4,8% | 87,2% |
   | Bỏ G1+G2+G3 | 0% | 32,2% |
-- **Giới hạn:** lần E dùng cùng một VM, nên chỉ kiểm được việc đổi máy thật (CPU, ổ đĩa, mạng). Nó không kiểm việc đổi bản Ubuntu hay đổi kernel.
+- **Giới hạn:**
+  - Lần E dùng cùng một VM, nên chỉ kiểm được việc đổi máy thật (CPU, ổ đĩa, mạng). Nó không kiểm việc đổi bản Ubuntu hay đổi kernel.
+  - Vì chạy xen kẽ, phần lớn gói lành được đo trong VM đã chạy gói độc trước đó. Lần D thì đo gói lành trên VM sạch.
+    Nếu FPR khác lần D, phải ghi rõ khác biệt này. Gói nào làm hỏng VM (pip lỗi, probe chết) sẽ bị loại theo luật trên.
 
 ## 2. Chuẩn bị (làm trên Windows, VM đang tắt)
 
@@ -73,44 +81,41 @@ git pull
 git log --oneline -1          # phải là commit có file CHAY_KIEM_CHUNG.md hoặc mới hơn
 nproc                         # phải ra 4
 python3.8 --version           # phải có Python 3.8 (gói độc chạy bằng bản này)
-ls lapd_* lapc_* 2>/dev/null  # phải không ra gì; có file thì là chưa revert, quay lại bước 2.2
+ls lape_* 2>/dev/null         # phải không ra gì; có file thì là chưa revert, quay lại bước 2.2
+wc -l data/mix-lapE.txt       # phải ra 270
 ```
 
-Chạy cả hai phần bằng một lệnh. Phần gói lành chạy trước, phần gói độc chạy sau:
+Chạy (một lệnh, 270 gói xen kẽ):
 
 ```bash
-sudo systemd-inhibit --what=sleep:idle --why=dysec bash -c 'bash variant/verify_lapd.sh 2>&1 | tee -a lapd.log; bash variant/verify_mal.sh 2>&1 | tee -a lapc.log'
+sudo systemd-inhibit --what=sleep:idle --why=dysec bash variant/verify_mix.sh 2>&1 | tee -a lape.log
 ```
 
-- **Thời gian (ước tính):** gói lành mất 6–8 tiếng, gói độc khoảng 8–10 tiếng. Cứ để máy chạy, không dùng máy thật vào việc nặng.
+- **Thời gian (ước tính):** 14–18 tiếng. Mỗi gói in một dòng `--- [số thứ tự/270] B|M tên gói (giờ)`, B là gói lành, M là gói độc. Cứ để máy chạy, không dùng máy thật vào việc nặng.
 - **Nếu bị dừng giữa chừng** (mất điện, lỡ tắt): chạy lại **đúng lệnh trên**. Script bỏ qua các gói đã đo xong và chạy tiếp.
 - **Nếu script in `!!! Shared Folders on: stop` hoặc `!!! hgfs mounted: stop`:** tắt Shared Folders (bước 2.3), khởi động lại VM rồi chạy lại lệnh.
-  Phần gói độc chỉ chạy khi Shared Folders đã tắt.
-- Khi xong, terminal in hai dòng `=== ALL DONE ...`, mỗi dòng có một mã sha256.
+  Script chỉ chạy khi Shared Folders đã tắt.
+- Khi xong, terminal in dòng `=== ALL DONE ...` kèm mã sha256 của file kết quả.
 
 ## 4. Lấy kết quả ra (TRƯỚC khi revert)
 
 1. Trong VM, chạy lệnh dưới. Chụp màn hình hoặc chép toàn bộ output gửi Hoàng:
    ```bash
    cd ~/DySec-NT521
-   grep -E "=== START|\.pkl|ALL DONE" lapd.log lapc.log
-   cat lapd_summary.txt lapc_summary.txt
+   grep -E "=== START|\.pkl|malicious samples|ALL DONE" lape.log
+   cat lape_ben_summary.txt lape_mal_summary.txt
    ```
-2. Trên Windows, copy hai file kết quả ra. Thay 3 chỗ trong ngoặc nhọn; mật khẩu VM thì hỏi Hoàng:
+2. Trên Windows, copy file kết quả ra. Thay 3 chỗ trong ngoặc nhọn; mật khẩu VM thì hỏi Hoàng:
    ```powershell
-   $vmrun = "C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe"
-   $vmx = "<đường dẫn tới NT521.vmx>"
-   foreach ($f in "lapd_out.tar.gz", "lapc_out.tar.gz") {
-     & $vmrun -T ws -gu hoang -gp <mật khẩu VM> CopyFileFromGuestToHost $vmx "/home/hoang/DySec-NT521/$f" "<thư mục>\$f"
-   }
-   Get-FileHash "<thư mục>\lapd_out.tar.gz", "<thư mục>\lapc_out.tar.gz"
+   & "C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe" -T ws -gu hoang -gp <mật khẩu VM> CopyFileFromGuestToHost "<đường dẫn tới NT521.vmx>" /home/hoang/DySec-NT521/lape_out.tar.gz "<thư mục>\lape_out.tar.gz"
+   Get-FileHash "<thư mục>\lape_out.tar.gz"
    ```
-   Mã hash phải trùng với hai dòng `ALL DONE`. Gửi hai file này cho Hoàng.
+   Mã hash phải trùng với dòng `ALL DONE`. Gửi file này cho Hoàng.
 3. Sau đó **revert** về `clean-ebpf-6.8.0-53` (VM đã chạy mã độc).
 
 ## 5. Không được làm
 
 - Không bật Shared Folders, kéo thả hoặc copy/paste giữa VM và máy thật khi phần gói độc đang chạy hoặc trước khi revert.
-- Không `git pull`/`git push` sau khi phần gói độc đã bắt đầu. Script đã xoá thông tin đăng nhập GitHub trong VM trước khi chạy gói độc.
-- Không copy file nào khác ra ngoài ngoài hai file `.tar.gz` (trong đó chỉ có csv, txt và log).
+- Không `git pull`/`git push` sau khi script đã bắt đầu. Script xoá thông tin đăng nhập GitHub trong VM trước gói đầu tiên.
+- Không copy file nào khác ra ngoài ngoài `lape_out.tar.gz` (trong đó chỉ có csv, txt và log).
 - Không dùng VM này vào việc khác trước khi revert.
