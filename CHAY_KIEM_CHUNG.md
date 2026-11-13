@@ -22,6 +22,7 @@ File này được commit **trước khi chạy**. Sau khi đã thấy số thì
   | `variant/rf_drop_g1g2g3.pkl` | `1dcf7295…` |
 
   Nếu không trùng thì dừng lại, báo Hoàng.
+  Hai file `variant/rf_*.pkl` trên git được huấn luyện trên Windows nên có hash khác. Script huấn luyện lại hai file này trong VM ở đầu lần chạy, và hash in ra lúc đó mới là hash cần so.
 - **Lần đo bị loại:** như lần C và D. Đó là các lần probe eBPF dừng sớm (sau tối đa 2 lần chạy lại), pip báo lỗi, Attach_Delay trên 10 giây, hoặc không có thời gian cài. Script tự làm việc này.
 - **Bỏ G1+G2 được ghi là "vẫn tốt trên máy khác" khi đạt cả hai điều kiện:**
   1. Trên các gói lành hợp lệ, cận trên khoảng tin cậy Wilson 95% của FPR bỏ G1+G2 thấp hơn cận dưới của model gốc.
