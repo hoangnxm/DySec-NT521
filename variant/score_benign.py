@@ -40,8 +40,8 @@ def main():
         lo, hi = wilson(k, len(ok))
         print(f"{m:17s} FPR {k}/{len(ok)} = {k / max(len(ok), 1):.1%} (95% CI {lo:.1%}-{hi:.1%})")
     # paired check on the same runs (exact McNemar, two-sided): authors' RF vs drop G1+G2
-    a, v = ok["RF_authors"] >= 0.5, ok["RF_drop_g1g2"] >= 0.5
-    only_a, only_v = int((a & ~v).sum()), int((~a & v).sum())
+    fa, fv = ok["RF_authors"] >= 0.5, ok["RF_drop_g1g2"] >= 0.5
+    only_a, only_v = int((fa & ~fv).sum()), int((~fa & fv).sum())
     n, k = only_a + only_v, min(only_a, only_v)
     p = min(1.0, 2 * sum(math.comb(n, j) for j in range(k + 1)) / 2 ** n) if n else 1.0
     print(f"paired (same runs): FP only by RF_authors {only_a} | only by RF_drop_g1g2 {only_v} | exact McNemar p = {p:.4f}")
